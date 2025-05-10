@@ -13,8 +13,9 @@ warnings.filterwarnings('ignore')
 
 def train_1epoch(dataloader, eval_dataloader, earlystopper, model, vision_processor, text_processor, optimizer, scheduler, device, accelerator=None):
     model.train()
-    t = tqdm(dataloader, disable=not accelerator.is_local_main_process)
-    for i, (images, texts, longitude, latitude) in enumerate(t):
+    # t = tqdm(dataloader, disable=not accelerator.is_local_main_process)
+    # for i, (images, texts, longitude, latitude) in enumerate(t):
+    for i, (images, texts, longitude, latitude) in enumerate(dataloader):
         texts = text_processor(text=texts, padding='max_length', truncation=True, return_tensors='pt', max_length=77)
         images = images.to(device)
         texts = texts.to(device)
@@ -29,7 +30,12 @@ def train_1epoch(dataloader, eval_dataloader, earlystopper, model, vision_proces
         accelerator.backward(loss)
         optimizer.step()
         if i % 1 == 0:
-            t.set_description('step {}, loss {}, lr {}'.format(i, loss.item(), scheduler.get_last_lr()[0]))
+            # t.set_description('step {}, loss {}, lr {}'.format(i, loss.item(), scheduler.get_last_lr()[0]))
+            allocated = torch.cuda.memory_allocated(device) / 1024**2  # in MB
+            reserved = torch.cuda.memory_reserved(device) / 1024**2    # in MB
+            print('step {}/{}, loss {:.4f}, lr {:.6f}, VRAM allocated: {:.2f} MB, reserved: {:.2f} MB'.format(
+                i, len(dataloader), loss.item(), scheduler.get_last_lr()[0], allocated, reserved
+            ))
     scheduler.step()
 
 
