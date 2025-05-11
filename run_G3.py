@@ -47,8 +47,8 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # device = 'cpu'
     model = G3(device).to(device)
-    # location_encoder_dict = torch.load('location_encoder.pth') # from geoclip
-    # model.location_encoder.load_state_dict(location_encoder_dict)
+    location_encoder_dict = torch.load('g3_5_.pth') # from geoclip
+    model.location_encoder.load_state_dict(location_encoder_dict)
 
     dataset = MP16Dataset(vision_processor = model.vision_processor, text_processor = model.text_processor, image_data_path='/root/.cache/mp-16-images.tar')
     dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=16, pin_memory=True, prefetch_factor=5)
@@ -69,7 +69,7 @@ def main():
 
     eval_dataloader = None
     earlystopper = None
-    for epoch in range(10):
+    for epoch in range(4):
         train_1epoch(dataloader, eval_dataloader, earlystopper, model, model.vision_processor, model.text_processor, optimizer, scheduler, device, accelerator)
         unwrapped_model = accelerator.unwrap_model(model)
         os.makedirs('checkpoints', exist_ok=True)
