@@ -38,7 +38,7 @@ def get_hyperparameter(trial: optuna.trial.Trial, positional_encoding_type, neur
         raise ValueError(f"Unsupported network type: {neural_network_type}")
 
     hparams_opt = {}
-    hparams_opt["lr"] = trial.suggest_float("lr", 1e-4, 1e-1, log=True)
+    hparams_opt["lr"] = trial.suggest_float("lr", 1e-6, 1e-1, log=True)
     hparams_opt["wd"] = trial.suggest_float("wd", 1e-8, 1e-1, log=True)
 
     hparams = {}
@@ -50,19 +50,38 @@ def get_hyperparameter(trial: optuna.trial.Trial, positional_encoding_type, neur
     
     return hparams
 
+def train_1epoch(dataloader, eval_dataloader, earlystopper, model, vision_processor, text_processor, optimizer, scheduler, device, accelerator=None):
+    model.train()
+    # t = tqdm(dataloader, disable=not accelerator.is_local_main_process)
+    # for i, (images, texts, longitude, latitude) in enumerate(t):
+    for i, (images, texts, longitude, latitude) in enumerate(dataloader):
+        texts = text_processor(text=texts, padding='max_length', truncation=True, return_tensors='pt', max_length=77)
+        images = images.to(device)
+        texts = texts.to(device)
+        longitude = longitude.to(device).float()
+        latitude = latitude.to(device).float()
+        optimizer.zero_grad()
+
+        output = model(images, texts, longitude, latitude, return_loss=True)
+        loss = output['loss']
+
+        # loss.backward()
+        accelerator.backward(loss)
+        optimizer.step()
+        if i % 1 == 0:
+            # t.set_description('step {}, loss {}, lr {}'.format(i, loss.item(), scheduler.get_last_lr()[0]))
+            allocated = torch.cuda.memory_allocated(device) / 1024**2  # in MB
+            reserved = torch.cuda.memory_reserved(device) / 1024**2    # in MB
+            print('step {}/{}, loss {:.4f}, lr {:.6f}, VRAM allocated: {:.2f} MB, reserved: {:.2f} MB'.format(
+                i, len(dataloader), loss.item(), scheduler.get_last_lr()[0], allocated, reserved
+            ))
+    scheduler.step()
+
 def tune(positional_encoding_type, neural_network_type):
     n_trials = 100
     timeout = 4 * 60 * 60 # seconds
     epochs = 100
 
-    if dataset == "landoceandataset":
-        datamodule = LandOceanDataModule()
-        num_classes = 1
-        regression = False
-        presence_only = False
-        loss_bg_weight = False
-    else:
-        raise ValueError(f"Unknown dataset: {dataset}")
 
     def objective(trial: optuna.trial.Trial) -> float:
 
@@ -80,9 +99,7 @@ def tune(positional_encoding_type, neural_network_type):
             accelerator='gpu', 
             callbacks=[EarlyStopping(monitor="val_loss", mode="min", patience=30)])
 
-        trainer.logger.log_hyperparams(hparams)
-
-        trainer.fit(model=spatialencoder, datamodule=datamodule)
+        
 
         return trainer.callback_metrics["val_loss"].item()
 
