@@ -9,7 +9,7 @@ from .rff.layers import GaussianEncoding
 from .locationencoder import LocationEncoder
 from pyproj import Proj, Transformer
 
-# SF = 66.50336
+SF = 66.50336
 
 # class LocationEncoderCapsule(nn.Module):
 #     def __init__(self, sigma, input_dim):
@@ -80,6 +80,56 @@ from pyproj import Proj, Transformer
 #         for i in range(self.n):
 #             location_features += self._modules['LocEnc' + str(i)](location)
 #         return location_features
+    
+class LocationEncoderCapsule(nn.Module):
+    def __init__(self, sigma):
+        super(LocationEncoderCapsule, self).__init__()
+        rff_encoding = GaussianEncoding(sigma=sigma, input_size=2, encoded_size=256)
+        self.km = sigma
+        self.capsule = nn.Sequential(rff_encoding,
+                                     nn.Linear(512, 1024),
+                                     nn.ReLU(),
+                                     nn.Linear(1024, 1024),
+                                     nn.ReLU(),
+                                     nn.Linear(1024, 1024),
+                                     nn.ReLU())
+        self.head = nn.Sequential(nn.Linear(1024, 512))
+
+    def forward(self, x):
+        x = self.capsule(x)
+        x = self.head(x)
+        return x
+
+class CustomLocationEncoder(nn.Module):
+    def __init__(self, sigma=[2**0, 2**4, 2**8]):
+        super(CustomLocationEncoder, self).__init__()
+
+        self.sigma = sigma
+        self.n = len(self.sigma)
+
+        for i, s in enumerate(self.sigma):
+            self.add_module('LocEnc' + str(i), LocationEncoderCapsule(sigma=s))
+
+        proj_wgs84 = Proj('epsg:4326')
+        proj_mercator = Proj('epsg:3857')
+        self.transformer = Transformer.from_proj(proj_wgs84, proj_mercator, always_xy=True)
+
+    def forward(self, input):
+        lat = input[:, 0].float().detach().cpu().numpy()
+        lon = input[:, 1].float().detach().cpu().numpy()
+        projected_lon_lat = self.transformer.transform(lon, lat)
+        location = []
+        for coord in zip(*projected_lon_lat):
+            location.append([coord[1],coord[0]])
+        location = torch.Tensor(location).to('cuda')
+        location = location / 20037508.3427892
+
+        location_features = torch.zeros(location.shape[0], 512).to('cuda')
+
+        for i in range(self.n):
+            location_features += self._modules['LocEnc' + str(i)](location)
+
+        return location_features
 
 
 class G3(torch.nn.Module):
@@ -99,7 +149,7 @@ class G3(torch.nn.Module):
         self.logit_scale2 = nn.Parameter(torch.tensor(3.99))
         self.logit_scale3 = nn.Parameter(torch.tensor(3.99))
 
-        self.location_encoder = LocationEncoder() # output batch_size, 3, 512
+        self.location_encoder = CustomLocationEncoder() # output batch_size, 3, 512
         #self.location_encoder = LocationEncoder(sigma=[2**0, 2**4, 2**8])
         self.vision_projection_else_1 = nn.Sequential(nn.Linear(768, 768), nn.ReLU(), nn.Linear(768, 768))
         self.text_projection_else = nn.Sequential(nn.Linear(768,768), nn.ReLU(), nn.Linear(768, 768))
