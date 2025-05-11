@@ -70,7 +70,7 @@ def main():
 
     eval_dataloader = None
     earlystopper = None
-    for epoch in range(4):
+    for epoch in range(10):
         train_1epoch(dataloader, eval_dataloader, earlystopper, model, model.vision_processor, model.text_processor, optimizer, scheduler, device, accelerator)
         unwrapped_model = accelerator.unwrap_model(model)
         os.makedirs('checkpoints', exist_ok=True)
