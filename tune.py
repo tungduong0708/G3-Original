@@ -1,6 +1,5 @@
 import os.path
-from locationencoder import LocationEncoder
-from data import LandOceanDataModule, Inat2018DataModule, CheckerboardDataModule
+from .utils.locationencoder import LocationEncoder
 import lightning as pl
 import optuna
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
@@ -12,26 +11,31 @@ TUNE_RESULTS_DIR = "results/tune"
 import logging
 logging.getLogger("lightning").setLevel(logging.ERROR)
 
-def get_hyperparameter(trial: optuna.trial.Trial, positional_encoding_name, neural_network_name):
+def get_hyperparameter(trial: optuna.trial.Trial, positional_encoding_type, neural_network_type):
 
     hparams_pe = {}
-    if positional_encoding_name in ["theory", "grid", "spherec", "spherecplus",  "spherem", "spheremplus"]:
-        hparams_pe["min_radius"] = trial.suggest_int("min_radius", 1, 90, step=9)
-        hparams_pe["max_radius"] = 360
-        hparams_pe["frequency_num"] = trial.suggest_int("frequency_num", 16, 64, step=16)
-    elif positional_encoding_name == "sphericalharmonics":
+    if positional_encoding_type == "projectionrff":
+        hparams_pe["projection"] = trial.suggest_categorical("projection", ["ecef", "mercator", "eep"])
+        hparams_pe["sigma"] = [2**0, 2**4, 2**8]
+    elif positional_encoding_type == "projection":
+        hparams_pe["projection"] = trial.suggest_categorical("projection", ["ecef", "mercator", "eep"])
+    elif positional_encoding_type == "sh":
         hparams_pe["legendre_polys"] = trial.suggest_int("legendre_polys", 10, 30, step=5)
         hparams_pe["embedding_dim"] = trial.suggest_int("embedding_dim", 16, 128, step=16)
+    else:
+        raise ValueError(f"Unsupported encoding type: {positional_encoding_type}")
 
     hparams_nn = {}
-    if neural_network_name == "mlp":
-        hparams_nn["dim_hidden"] = trial.suggest_int("dim_hidden", 32, 128, step=32)
+    if neural_network_type == "siren":
+        hparams_nn["hidden_dim"] = trial.suggest_int("hidden_dim", 32, 128, step=32)
         hparams_nn["num_layers"] = trial.suggest_int("num_layers", 1, 3)
-    elif neural_network_name == "fcnet":
-        hparams_nn["dim_hidden"] = trial.suggest_int("dim_hidden", 32, 128, step=32)
-    elif neural_network_name == "siren":
-        hparams_nn["dim_hidden"] = trial.suggest_int("dim_hidden", 32, 128, step=32)
-        hparams_nn["num_layers"] = trial.suggest_int("num_layers", 1, 3)
+    elif neural_network_type == "mlp":
+        hparams_nn["hidden_dim"] = trial.suggest_int("hidden_dim", 32, 128, step=32)
+    elif neural_network_type == "rffmlp":
+        hparams_nn["sigma"] = [2**0, 2**4, 2**8]
+        hparams_nn["hidden_dim"] = trial.suggest_int("hidden_dim", 32, 128, step=32)
+    else:
+        raise ValueError(f"Unsupported network type: {neural_network_type}")
 
     hparams_opt = {}
     hparams_opt["lr"] = trial.suggest_float("lr", 1e-4, 1e-1, log=True)
@@ -46,7 +50,7 @@ def get_hyperparameter(trial: optuna.trial.Trial, positional_encoding_name, neur
     
     return hparams
 
-def tune(positional_encoding_name, neural_network_name, dataset="landoceandataset"):
+def tune(positional_encoding_type, neural_network_type):
     n_trials = 100
     timeout = 4 * 60 * 60 # seconds
     epochs = 100
@@ -74,15 +78,15 @@ def tune(positional_encoding_name, neural_network_name, dataset="landoceandatase
 
     def objective(trial: optuna.trial.Trial) -> float:
 
-        hparams = get_hyperparameter(trial, positional_encoding_name, neural_network_name)
+        hparams = get_hyperparameter(trial, positional_encoding_type, neural_network_type)
         hparams["num_classes"] = num_classes
         hparams["presence_only_loss"] = presence_only
         hparams["loss_bg_weight"] = loss_bg_weight
         hparams["regression"] = regression
 
         spatialencoder = LocationEncoder(
-                            positional_encoding_name,
-                            neural_network_name,
+                            positional_encoding_type,
+                            neural_network_type,
                             hparams=hparams
             )
 
@@ -99,7 +103,7 @@ def tune(positional_encoding_name, neural_network_name, dataset="landoceandatase
         return trainer.callback_metrics["val_loss"].item()
 
     pruner = optuna.pruners.MedianPruner()
-    study_name = f"{dataset}-{positional_encoding_name}-{neural_network_name}"
+    study_name = f"{dataset}-{positional_encoding_type}-{neural_network_type}"
     os.makedirs(f"{TUNE_RESULTS_DIR}/{dataset}/runs/", exist_ok=True)
     storage_name = f"sqlite:///{TUNE_RESULTS_DIR}/{dataset}/runs/{study_name}.db"
     study = optuna.create_study(study_name=study_name, direction="minimize", 
@@ -120,7 +124,7 @@ def tune(positional_encoding_name, neural_network_name, dataset="landoceandatase
 
     study.trials_dataframe()
 
-    runsummary = f"{TUNE_RESULTS_DIR}/{dataset}/runs/{positional_encoding_name}-{neural_network_name}.csv"
+    runsummary = f"{TUNE_RESULTS_DIR}/{dataset}/runs/{positional_encoding_type}-{neural_network_type}.csv"
     os.makedirs(os.path.dirname(runsummary), exist_ok=True)
 
     study.trials_dataframe().to_csv(runsummary)
