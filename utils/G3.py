@@ -9,77 +9,77 @@ from .rff.layers import GaussianEncoding
 from .locationencoder import LocationEncoder
 from pyproj import Proj, Transformer
 
-SF = 66.50336
+# SF = 66.50336
 
-class LocationEncoderCapsule(nn.Module):
-    def __init__(self, sigma, input_dim):
-        super(LocationEncoderCapsule, self).__init__()
-        rff_encoding = GaussianEncoding(sigma=sigma, input_size=input_dim, encoded_size=256)
-        self.km = sigma
-        self.capsule = nn.Sequential(rff_encoding,
-                                     nn.Linear(512, 1024),
-                                     nn.ReLU(),
-                                     nn.Linear(1024, 1024),
-                                     nn.ReLU(),
-                                     nn.Linear(1024, 1024),
-                                     nn.ReLU())
-        self.head = nn.Sequential(nn.Linear(1024, 512))
+# class LocationEncoderCapsule(nn.Module):
+#     def __init__(self, sigma, input_dim):
+#         super(LocationEncoderCapsule, self).__init__()
+#         rff_encoding = GaussianEncoding(sigma=sigma, input_size=input_dim, encoded_size=256)
+#         self.km = sigma
+#         self.capsule = nn.Sequential(rff_encoding,
+#                                      nn.Linear(512, 1024),
+#                                      nn.ReLU(),
+#                                      nn.Linear(1024, 1024),
+#                                      nn.ReLU(),
+#                                      nn.Linear(1024, 1024),
+#                                      nn.ReLU())
+#         self.head = nn.Sequential(nn.Linear(1024, 512))
 
-    def forward(self, x):
-        x = self.capsule(x)
-        x = self.head(x)
-        return x
+#     def forward(self, x):
+#         x = self.capsule(x)
+#         x = self.head(x)
+#         return x
 
-class CustomLocationEncoder(nn.Module):
-    def __init__(self, sigma=[2**0, 2**4, 2**8], projection="mercator"):
-        super(CustomLocationEncoder, self).__init__()
+# class CustomLocationEncoder(nn.Module):
+#     def __init__(self, sigma=[2**0, 2**4, 2**8], projection="mercator"):
+#         super(CustomLocationEncoder, self).__init__()
 
-        self.sigma = sigma
-        self.n = len(self.sigma)
-        self.projection = projection.lower()
+#         self.sigma = sigma
+#         self.n = len(self.sigma)
+#         self.projection = projection.lower()
 
-        proj_wgs84 = Proj('epsg:4326')
+#         proj_wgs84 = Proj('epsg:4326')
 
-        if self.projection == "mercator":
-            proj_target = Proj('epsg:3857')
-            input_dim = 2
-            self.normalizer = 20037508.3427892
-        elif self.projection == "eep":
-            proj_target = Proj('epsg:8857')
-            input_dim = 2
-            self.normalizer = 180/SF 
-        elif self.projection == "ecef":
-            proj_target = Proj('epsg:4978')
-            input_dim = 3
-            self.normalizer = 6378137.0  # radius of Earth, not exact for ECEF but usable
-        else:
-            raise ValueError(f"Unsupported projection: {self.projection}")
+#         if self.projection == "mercator":
+#             proj_target = Proj('epsg:3857')
+#             input_dim = 2
+#             self.normalizer = 20037508.3427892
+#         elif self.projection == "eep":
+#             proj_target = Proj('epsg:8857')
+#             input_dim = 2
+#             self.normalizer = 180/SF 
+#         elif self.projection == "ecef":
+#             proj_target = Proj('epsg:4978')
+#             input_dim = 3
+#             self.normalizer = 6378137.0  # radius of Earth, not exact for ECEF but usable
+#         else:
+#             raise ValueError(f"Unsupported projection: {self.projection}")
 
-        self.transformer = Transformer.from_proj(proj_wgs84, proj_target, always_xy=True)
-        for i, s in enumerate(self.sigma):
-            self.add_module('LocEnc' + str(i), LocationEncoderCapsule(sigma=s, input_dim=input_dim))
+#         self.transformer = Transformer.from_proj(proj_wgs84, proj_target, always_xy=True)
+#         for i, s in enumerate(self.sigma):
+#             self.add_module('LocEnc' + str(i), LocationEncoderCapsule(sigma=s, input_dim=input_dim))
 
-    def forward(self, input):
-        lat = input[:, 0].float().detach().cpu().numpy()
-        lon = input[:, 1].float().detach().cpu().numpy()
+#     def forward(self, input):
+#         lat = input[:, 0].float().detach().cpu().numpy()
+#         lon = input[:, 1].float().detach().cpu().numpy()
 
-        # Shape: (N, 2) or (N, 3) depending on projection
-        if self.projection == "ecef":
-            alt = np.zeros_like(lat)
-            projected = self.transformer.transform(lon, lat, alt)
-            location = list(zip(*projected))  # X, Y, Z
-            location = torch.Tensor(location).to('cuda')
-        else:
-            projected = self.transformer.transform(lon, lat)
-            location = [[y, x] for x, y in zip(*projected)]
-            location = torch.Tensor(location).to('cuda')
+#         # Shape: (N, 2) or (N, 3) depending on projection
+#         if self.projection == "ecef":
+#             alt = np.zeros_like(lat)
+#             projected = self.transformer.transform(lon, lat, alt)
+#             location = list(zip(*projected))  # X, Y, Z
+#             location = torch.Tensor(location).to('cuda')
+#         else:
+#             projected = self.transformer.transform(lon, lat)
+#             location = [[y, x] for x, y in zip(*projected)]
+#             location = torch.Tensor(location).to('cuda')
 
-        location = location / self.normalizer
-        location_features = torch.zeros(location.shape[0], 512).to('cuda')
+#         location = location / self.normalizer
+#         location_features = torch.zeros(location.shape[0], 512).to('cuda')
 
-        for i in range(self.n):
-            location_features += self._modules['LocEnc' + str(i)](location)
-        return location_features
+#         for i in range(self.n):
+#             location_features += self._modules['LocEnc' + str(i)](location)
+#         return location_features
 
 
 class G3(torch.nn.Module):
