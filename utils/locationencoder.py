@@ -64,7 +64,7 @@ def get_neural_network(neural_network_type, input_dim, **kwargs):
     
 
 class LocationEncoder(nn.Module):
-    def __init__(self, position_encoding_type="projection", neural_network_type="rffmlp", **kwargs):
+    def __init__(self, position_encoding_type="projectionrff", neural_network_type="mlp", **kwargs):
         super().__init__()
 
         self.position_encoder = get_positional_encoding(

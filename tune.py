@@ -61,28 +61,12 @@ def tune(positional_encoding_type, neural_network_type):
         regression = False
         presence_only = False
         loss_bg_weight = False
-    elif dataset == "checkerboard":
-        datamodule = CheckerboardDataModule()
-        num_classes = 16
-        regression = False
-        presence_only = False
-        loss_bg_weight = False,
-    elif dataset == "inat2018":
-        datamodule = Inat2018DataModule("/data/sphericalharmonics/inat2018/")
-        num_classes = 8142
-        regression = False
-        presence_only = True
-        loss_bg_weight = 5
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 
     def objective(trial: optuna.trial.Trial) -> float:
 
         hparams = get_hyperparameter(trial, positional_encoding_type, neural_network_type)
-        hparams["num_classes"] = num_classes
-        hparams["presence_only_loss"] = presence_only
-        hparams["loss_bg_weight"] = loss_bg_weight
-        hparams["regression"] = regression
 
         spatialencoder = LocationEncoder(
                             positional_encoding_type,
