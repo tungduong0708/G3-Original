@@ -138,18 +138,22 @@ def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
                 top_k=5
             )
             acc_2500, acc_750, acc_200, acc_25, acc_1 = res
+            total_acc = 0
+            for acc in res:
+                total_acc += acc
+            avg_acc = total_acc/len(res)
 
-            trial.report(acc_200, step=epoch)
+            trial.report(avg_acc, step=epoch)
             if trial.should_prune():
                 raise optuna.TrialPruned()
 
-        return acc_2500, acc_750, acc_200, acc_25, acc_1
+        return avg_acc
 
     pruner = optuna.pruners.MedianPruner()
     study_name = f"{dataset_name}-{positional_encoding_type}-{neural_network_type}"
     os.makedirs(f"{TUNE_RESULTS_DIR}/{dataset_name}/runs/", exist_ok=True)
     storage_name = f"sqlite:///{TUNE_RESULTS_DIR}/{dataset_name}/runs/{study_name}.db"
-    study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize", "maximize", "maximize", "maximize"], 
+    study = optuna.create_study(study_name=study_name, direction="maximize", 
                                 storage=storage_name, load_if_exists=True, 
                                 pruner=pruner)
     study.optimize(objective, n_trials=n_trials, timeout=timeout)
