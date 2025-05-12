@@ -162,13 +162,30 @@ def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
     print("Number of finished trials: {}".format(len(study.trials)))
 
     print("Best trial:")
-    trial = study.best_trial
+    # trial = study.best_trial
+    # print("  Value: {}".format(trial.value))
 
-    print("  Value: {}".format(trial.value))
+    # print("  Params: ")
+    # for key, value in trial.params.items():
+    #     print("    {}: {}".format(key, value))
 
-    print("  Params: ")
-    for key, value in trial.params.items():
-        print("    {}: {}".format(key, value))
+    # study.trials_dataframe()
+
+    # runsummary = f"{TUNE_RESULTS_DIR}/{dataset_name}/runs/{positional_encoding_type}-{neural_network_type}.csv"
+    # os.makedirs(os.path.dirname(runsummary), exist_ok=True)
+
+    # study.trials_dataframe().to_csv(runsummary)
+
+    best_trials = study.best_trials
+
+    print("Best trials on the Pareto front:")
+    for i, trial in enumerate(best_trials):
+        print(f"\nTrial {i+1}:")
+        print(f"  Values (acc_2500, acc_750, acc_200, acc_25, acc_1): {trial.values}")
+        print("  Params:")
+        for key, value in trial.params.items():
+            print(f"    {key}: {value}")
+
 
     study.trials_dataframe()
 
