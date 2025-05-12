@@ -149,7 +149,7 @@ def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
     study_name = f"{dataset_name}-{positional_encoding_type}-{neural_network_type}"
     os.makedirs(f"{TUNE_RESULTS_DIR}/{dataset_name}/runs/", exist_ok=True)
     storage_name = f"sqlite:///{TUNE_RESULTS_DIR}/{dataset_name}/runs/{study_name}.db"
-    study = optuna.create_study(study_name=study_name, direction=["maximize", "maximize", "maximize", "maximize", "maximize"], 
+    study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize", "maximize", "maximize", "maximize"], 
                                 storage=storage_name, load_if_exists=True, 
                                 pruner=pruner)
     study.optimize(objective, n_trials=n_trials, timeout=timeout)
