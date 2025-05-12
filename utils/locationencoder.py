@@ -97,6 +97,7 @@ class LocationEncoder(nn.Module):
 
     def forward(self, x):
         embedding = self.position_encoder(x)
+        print("SH output requires_grad:", embedding.requires_grad)
         
         if embedding.ndim == 2:
             # If the embedding is (batch, n), we need to add a dimension

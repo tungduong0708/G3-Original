@@ -74,6 +74,11 @@ def train_1epoch(dataloader, eval_dataloader, earlystopper, model, vision_proces
         output = model(images, texts, longitude, latitude, return_loss=True)
         loss = output['loss']
 
+        print("Loss grad_fn:", loss.grad_fn)
+        print("Loss requires_grad:", loss.requires_grad)
+        print("Loss type:", type(loss))
+
+
         # loss.backward()
         accelerator.backward(loss)
         optimizer.step()

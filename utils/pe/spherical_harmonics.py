@@ -36,4 +36,4 @@ class SphericalHarmonics(nn.Module):
                     y = y * torch.ones_like(phi)
                 Y.append(y)
 
-        return torch.stack(Y,dim=-1) # (batch, L * L)
+        return torch.stack(Y,dim=-1).detach() # (batch, L * L)
