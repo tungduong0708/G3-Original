@@ -11,7 +11,7 @@ from pyproj import Proj, Transformer
 SF = 66.50336
 
 class ProjectionRFF(nn.Module):
-    def __init__(self, projection="ecef", sigma=[2**0, 2**4, 2**8]):
+    def __init__(self, projection="ecef", sigma=[2**0, 2**4, 2**8], hparams=None):
         super(ProjectionRFF, self).__init__()
 
         self.sigma = sigma

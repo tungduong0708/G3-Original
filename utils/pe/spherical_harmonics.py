@@ -4,7 +4,7 @@ from .spherical_harmonics_ylm import SH as SH_analytic
 from .spherical_harmonics_closed_form import SH as SH_closed_form
 
 class SphericalHarmonics(nn.Module):
-    def __init__(self, legendre_polys: int = 10, harmonics_calculation="analytic"):
+    def __init__(self, legendre_polys: int = 10, harmonics_calculation="analytic", hparams=None):
         """
         legendre_polys: determines the number of legendre polynomials.
                         more polynomials lead more fine-grained resolutions
