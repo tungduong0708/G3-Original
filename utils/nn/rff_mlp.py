@@ -22,7 +22,7 @@ class LocationEncoderCapsule(nn.Module):
     
 class RFFMLP(nn.Module):
     """Multi-layer perceptron (MLP) with batch normalization and ReLU activation."""
-    def __init__(self, input_dim=2, hidden_dim=1024, output_dim=512, sigma=[2**0, 2**4, 2**8]):
+    def __init__(self, input_dim=2, hidden_dim=1024, output_dim=512, sigma=[2**0, 2**4, 2**8], hparams=None):
         super(RFFMLP, self).__init__()
         self.num_hierarchies = len(sigma)
 

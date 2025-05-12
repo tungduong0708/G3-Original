@@ -58,7 +58,7 @@ class Siren(nn.Module):
 # siren network
 
 class SirenNet(nn.Module):
-    def __init__(self, input_dim = 512, hidden_dim = 1024, output_dim = 512, num_layers = 3, w0 = 1., w0_initial = 30., use_bias = True, final_activation = None, degreeinput = False, dropout = False):
+    def __init__(self, input_dim = 512, hidden_dim = 1024, output_dim = 512, num_layers = 3, w0 = 1., w0_initial = 30., use_bias = True, final_activation = None, degreeinput = False, dropout = False, hparams=None):
         super().__init__()
         self.num_layers = num_layers
         self.hidden_dim = hidden_dim

@@ -3,7 +3,7 @@ from torch import nn
 class MLP(nn.Module):
     """Multi-layer perceptron (MLP) with batch normalization and ReLU activation."""
 
-    def __init__(self, input_dim=512, hidden_dim=1024, output_dim=512):
+    def __init__(self, input_dim=512, hidden_dim=1024, output_dim=512, hparams=None):
         super(MLP, self).__init__()
         self.capsule = nn.Sequential(nn.Linear(input_dim, hidden_dim),
                                      nn.ReLU(),
