@@ -10,7 +10,7 @@ from pyproj import Proj, Transformer
 SF = 66.50336
 
 class Projection(nn.Module):
-    def __init__(self, projection="mercator"):
+    def __init__(self, projection="mercator", hparams=None):
         super(Projection, self).__init__()
 
         self.projection = projection.lower()
