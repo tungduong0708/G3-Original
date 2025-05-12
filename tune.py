@@ -90,41 +90,44 @@ def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
     n_trials = 10
     timeout = 90 * 60 # seconds
     epochs = 3
-    hparams = get_hyperparameter(trial, positional_encoding_type, neural_network_type)
 
-    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
-    accelerator = Accelerator(kwargs_handlers=[ddp_kwargs])
-
-    # fine-tune
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = G3(
-        device, 
-        positional_encoding_type,
-        neural_network_type,
-        hparams=hparams,
-    ).to(device)
-
-    dataset = MP16Dataset(vision_processor = model.vision_processor, text_processor = model.text_processor, image_data_path='/root/.cache/mp-16-images.tar')
-    dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=16, pin_memory=True, prefetch_factor=5)
-
-
-    params = []
-    for name, param in model.named_parameters():
-        if param.requires_grad:
-            print(name, param.size())
-            params.append(param)
-
-    optimizer = torch.optim.AdamW([param for name,param in model.named_parameters() if param.requires_grad], lr=3e-5, weight_decay=1e-6)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.87)
-
-    model, optimizer, dataloader, scheduler = accelerator.prepare(
-        model, optimizer, dataloader, scheduler
-    )
-
-    eval_dataloader = None
-    earlystopper = None
+    
 
     def objective(trial: optuna.trial.Trial) -> float:
+        hparams = get_hyperparameter(trial, positional_encoding_type, neural_network_type)
+
+        ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+        accelerator = Accelerator(kwargs_handlers=[ddp_kwargs])
+
+        # fine-tune
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = G3(
+            device, 
+            positional_encoding_type,
+            neural_network_type,
+            hparams=hparams,
+        ).to(device)
+
+        dataset = MP16Dataset(vision_processor = model.vision_processor, text_processor = model.text_processor, image_data_path='/root/.cache/mp-16-images.tar')
+        dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=16, pin_memory=True, prefetch_factor=5)
+
+
+        params = []
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                print(name, param.size())
+                params.append(param)
+
+        optimizer = torch.optim.AdamW([param for name,param in model.named_parameters() if param.requires_grad], lr=3e-5, weight_decay=1e-6)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.87)
+
+        model, optimizer, dataloader, scheduler = accelerator.prepare(
+            model, optimizer, dataloader, scheduler
+        )
+
+        eval_dataloader = None
+        earlystopper = None
+
         for epoch in range(epochs):
             train_1epoch(dataloader, eval_dataloader, earlystopper, model, model.vision_processor, model.text_processor, optimizer, scheduler, device, accelerator)
             unwrapped_model = accelerator.unwrap_model(model)
