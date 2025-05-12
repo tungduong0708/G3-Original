@@ -135,14 +135,6 @@ def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
             train_1epoch(dataloader, eval_dataloader, earlystopper, model, model.vision_processor, model.text_processor, optimizer, scheduler, device, accelerator)
             unwrapped_model = accelerator.unwrap_model(model)
 
-            predictor = ZeroShotPredictor(model=unwrapped_model, device=device)
-            df, res = predictor.evaluate_im2gps3k(
-                df_path="im2gps3k_places365.csv",
-                top_k=5
-            )
-            
-            acc_2500, acc_750, acc_200, acc_25, acc_1 = res
-
             # total_acc = 0
             # for acc in res:
             #     total_acc += acc
@@ -154,13 +146,20 @@ def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
             #     raise optuna.TrialPruned()
 
         # return avg_acc
+        predictor = ZeroShotPredictor(model=unwrapped_model, device=device)
+        df, res = predictor.evaluate_im2gps3k(
+            df_path="im2gps3k_places365.csv",
+            top_k=5
+        )
+        
+        acc_2500, acc_750, acc_200, acc_25, acc_1 = res
         return acc_2500, acc_750, acc_200, acc_25, acc_1
 
     pruner = optuna.pruners.MedianPruner()
     study_name = f"{dataset_name}-{positional_encoding_type}-{neural_network_type}"
     os.makedirs(f"{TUNE_RESULTS_DIR}/{dataset_name}/runs/", exist_ok=True)
     storage_name = f"sqlite:///{TUNE_RESULTS_DIR}/{dataset_name}/runs/{study_name}.db"
-    study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize", "maximize", "maximize", "maximize"], 
+    study = optuna.create_study(study_name=study_name, directions=["maximize"]*5, 
                                 storage=storage_name, load_if_exists=True, 
                                 pruner=pruner)
     study.optimize(objective, n_trials=n_trials, timeout=timeout)
