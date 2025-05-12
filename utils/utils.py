@@ -123,7 +123,8 @@ class im2gps3kDataset(VisionDataset):
         self.root_path = root_path
         self.text_data_path = text_data_path
         self.image_data_path = image_data_path
-        self.text_data = pd.read_csv(os.path.join(self.root_path, self.text_data_path))
+        self.text_data = pd.read_csv(self.text_data_path)
+        # self.text_data = pd.read_csv(os.path.join(self.root_path, self.text_data_path))
         # self.text_data = self.text_data[self.text_data['IMG_ID'].str.endswith('.jpg')] # only keep jpg images
         print('read text data success')
 
