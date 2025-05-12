@@ -14,6 +14,7 @@ from utils.G3 import G3
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from zeroshot_prediction import ZeroShotPredictor
 import warnings
+import matplotlib.pyplot as plt
 
 warnings.filterwarnings('ignore')
 
@@ -87,7 +88,7 @@ def train_1epoch(dataloader, eval_dataloader, earlystopper, model, vision_proces
             ))
     scheduler.step()
 
-def tune(positional_encoding_type, neural_network_type):
+def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
     n_trials = 10
     timeout = 90 * 60 # seconds
     epochs = 3
@@ -144,9 +145,9 @@ def tune(positional_encoding_type, neural_network_type):
         return acc_2500, acc_750, acc_200, acc_25, acc_1
 
     pruner = optuna.pruners.MedianPruner()
-    study_name = f"{dataset}-{positional_encoding_type}-{neural_network_type}"
-    os.makedirs(f"{TUNE_RESULTS_DIR}/{dataset}/runs/", exist_ok=True)
-    storage_name = f"sqlite:///{TUNE_RESULTS_DIR}/{dataset}/runs/{study_name}.db"
+    study_name = f"{dataset_name}-{positional_encoding_type}-{neural_network_type}"
+    os.makedirs(f"{TUNE_RESULTS_DIR}/{dataset_name}/runs/", exist_ok=True)
+    storage_name = f"sqlite:///{TUNE_RESULTS_DIR}/{dataset_name}/runs/{study_name}.db"
     study = optuna.create_study(study_name=study_name, direction=["maximize", "maximize", "maximize", "maximize", "maximize"], 
                                 storage=storage_name, load_if_exists=True, 
                                 pruner=pruner)
@@ -165,79 +166,76 @@ def tune(positional_encoding_type, neural_network_type):
 
     study.trials_dataframe()
 
-    runsummary = f"{TUNE_RESULTS_DIR}/{dataset}/runs/{positional_encoding_type}-{neural_network_type}.csv"
+    runsummary = f"{TUNE_RESULTS_DIR}/{dataset_name}/runs/{positional_encoding_type}-{neural_network_type}.csv"
     os.makedirs(os.path.dirname(runsummary), exist_ok=True)
 
     study.trials_dataframe().to_csv(runsummary)
 
-def compile_summaries(dataset):
-    tune_results_dir_this_datset = os.path.join(TUNE_RESULTS_DIR, dataset)
-    runsdir = os.path.join(TUNE_RESULTS_DIR, f"{dataset}/runs")
+def compile_summaries(dataset_name="mp16"):
 
-    csvs = [csv for csv in os.listdir(runsdir) if csv.endswith("csv") and csv != "summary.csv"]
+    tune_results_dir_this_dataset = os.path.join(TUNE_RESULTS_DIR, dataset_name)
+    runsdir = os.path.join(tune_results_dir_this_dataset, "runs")
+
+    csvs = [csv for csv in os.listdir(runsdir) if csv.endswith(".csv") and csv != "summary.csv"]
 
     summary = []
-    hparams = {}
+
     for csv in csvs:
         df = pd.read_csv(os.path.join(runsdir, csv))
-        best_run = df.sort_values(by="value").iloc[0]
-        value = best_run.value
-        params = {k.replace("params_", ""): v for k, v in best_run.to_dict().items() if "params" in k}
-        pe, nn = csv.replace(".csv", "").split("-")
-        hparams[f"{pe}-{nn}"] = params
+        # Average all 5 objective values to rank (can be changed)
+        df["mean_value"] = df[["values_0", "values_1", "values_2", "values_3", "values_4"]].mean(axis=1)
+        best_run = df.sort_values(by="mean_value", ascending=False).iloc[0]
 
-        sum = {
-            "pe":pe,
-            "nn":nn,
-            "value":value
+        values = {
+            "acc@2500": best_run["values_0"],
+            "acc@750": best_run["values_1"],
+            "acc@200": best_run["values_2"],
+            "acc@25": best_run["values_3"],
+            "acc@1": best_run["values_4"]
         }
-        sum.update(params)
 
-        summary.append(sum)
+        params = {k.replace("params_", ""): v for k, v in best_run.to_dict().items() if "params_" in k}
+        pe, nn = csv.replace(".csv", "").split("-")
 
-    summary = pd.DataFrame(summary).sort_values("value").set_index(["pe","nn"])
-    summary.to_csv(os.path.join(tune_results_dir_this_datset, "summary.csv"))
+        print(f"Best params for {pe}-{nn}:")
+        for k, v in params.items():
+            print(f"  {k}: {v}")
 
-    print("writing " + os.path.join(tune_results_dir_this_datset, "hparams.yaml"))
-    with open(os.path.join(tune_results_dir_this_datset, "hparams.yaml"), 'w') as f:
-        yaml.dump(hparams, f)
+        row = {"pe": pe, "nn": nn}
+        row.update(values)
+        row.update(params)
+        summary.append(row)
 
-    value_matrix = pd.pivot_table(summary.value.reset_index(), index="pe", columns="nn", values=["value"])["value"]
-    print("writing " + os.path.join(tune_results_dir_this_datset, "values.csv"))
-    value_matrix.to_csv(os.path.join(tune_results_dir_this_datset, "values.csv"))
+    summary = pd.DataFrame(summary).set_index(["pe", "nn"]).sort_values(by="acc@200", ascending=False)
+    summary.to_csv(os.path.join(tune_results_dir_this_dataset, "summary.csv"))
 
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots()
-    ax.imshow(value_matrix)
-    ax.set_xticks(range(len(value_matrix.columns)))
-    ax.set_xticklabels(value_matrix.columns)
-    ax.set_xlabel(value_matrix.columns.name)
+    for acc_type in ["acc@2500", "acc@750", "acc@200", "acc@25", "acc@1"]:
+        pivot = pd.pivot_table(summary.reset_index(), index="pe", columns="nn", values=acc_type)
+        csv_path = os.path.join(tune_results_dir_this_dataset, f"{acc_type}.csv")
+        print(f"Writing {csv_path}")
+        pivot.to_csv(csv_path)
 
-    ax.set_yticks(range(len(value_matrix.index)))
-    ax.set_yticklabels(value_matrix.index)
-    ax.set_ylabel(value_matrix.index.name)
+        fig, ax = plt.subplots()
+        im = ax.imshow(pivot, cmap='viridis')
+        ax.set_xticks(range(len(pivot.columns)))
+        ax.set_xticklabels(pivot.columns)
+        ax.set_xlabel(pivot.columns.name)
 
-    plt.tight_layout()
+        ax.set_yticks(range(len(pivot.index)))
+        ax.set_yticklabels(pivot.index)
+        ax.set_ylabel(pivot.index.name)
+        plt.colorbar(im)
 
-    print("writing "+os.path.join(tune_results_dir_this_datset, "values.png"))
-    fig.savefig(os.path.join(tune_results_dir_this_datset, "values.png"), transparent=True, bbox_inches="tight", pad_inches=0)
+        plt.tight_layout()
+        fig.savefig(os.path.join(tune_results_dir_this_dataset, f"{acc_type}.png"),
+                    transparent=True, bbox_inches="tight", pad_inches=0)
+
 
 if __name__ == '__main__':
-    #positional_encoders = ["theory", "direct", "cartesian3d", "grid"] # "sphericalharmonics",
-    #neural_networks = ["siren", "fcnet", "linear", "mlp"]
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="landoceandataset", help="Name of the dataset")
-
-    args = parser.parse_args()
-
-    dataset = args.dataset
-
-    positional_encoders = ["cartesian3d", "sphericalharmonics"]
-    neural_networks = ["linear", "siren", "fcnet"]
+    positional_encoders = ["sh"]
+    neural_networks = ["siren"]
     for pe in positional_encoders:
         for nn in neural_networks:
-            tune(pe, nn, dataset=dataset)
+            tune(pe, nn)
 
-    compile_summaries(dataset)
+    compile_summaries()
