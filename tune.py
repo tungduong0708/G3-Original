@@ -87,9 +87,9 @@ def train_1epoch(dataloader, eval_dataloader, earlystopper, model, vision_proces
     scheduler.step()
 
 def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
-    n_trials = 1
+    n_trials = 10
     timeout = 90 * 60 # seconds
-    epochs = 1
+    epochs = 3
 
     def objective(trial: optuna.trial.Trial) -> float:
         hparams = get_hyperparameter(trial, positional_encoding_type, neural_network_type)
