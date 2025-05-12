@@ -91,8 +91,6 @@ def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
     timeout = 90 * 60 # seconds
     epochs = 3
 
-    
-
     def objective(trial: optuna.trial.Trial) -> float:
         hparams = get_hyperparameter(trial, positional_encoding_type, neural_network_type)
 
@@ -137,11 +135,12 @@ def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
                 df_path="im2gps3k_places365.csv",
                 top_k=5
             )
-            acc_2500, acc_750, acc_200, acc_25, acc_1 = res
+            
             total_acc = 0
             for acc in res:
                 total_acc += acc
             avg_acc = total_acc/len(res)
+            print(f"Epoch {epoch+1}/{epochs}, Accuracy: {avg_acc:.4f}")
 
             trial.report(avg_acc, step=epoch)
             if trial.should_prune():
