@@ -1,6 +1,5 @@
 import os.path
 import os
-import lightning as pl
 import optuna
 import torch
 import pandas as pd
