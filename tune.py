@@ -1,6 +1,5 @@
 import os.path
 import os
-from .utils.locationencoder import LocationEncoder
 import lightning as pl
 import optuna
 import torch
