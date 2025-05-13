@@ -48,7 +48,7 @@ def main():
     # device = 'cpu'
     model = G3(
         device=device,
-        positional_encoding_type='siren',
+        positional_encoding_type='sh',
         neural_network_type='siren',
         hparams={
             'legendre_polys': 20,
