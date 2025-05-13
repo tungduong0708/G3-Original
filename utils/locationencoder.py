@@ -80,7 +80,7 @@ def get_neural_network(neural_network_type, input_dim, hparams=None):
     
 
 class LocationEncoder(nn.Module):
-    def __init__(self, positional_encoding_type="projectionrff", neural_network_type="siren", hparams=None):
+    def __init__(self, positional_encoding_type="sh", neural_network_type="siren", hparams=None):
         super().__init__()
 
         self.position_encoder = get_positional_encoding(
