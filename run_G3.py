@@ -46,7 +46,17 @@ def main():
     # fine-tune
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # device = 'cpu'
-    model = G3(device).to(device)
+    model = G3(
+        device=device,
+        positional_encoding_type='siren',
+        neural_network_type='siren',
+        hparams={
+            'legendre_polys': 20,
+            'harmonics_calculation': 'analytic',
+            'hidden_dim': 1024,
+            'num_layers': 3,
+        }
+    ).to(device)
     # model = torch.load('g3_5_.pth')
     # location_encoder_dict = torch.load('g3_5_.pth') # from geoclip
     # model.location_encoder.load_state_dict(location_encoder_dict)
