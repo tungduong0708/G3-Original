@@ -106,7 +106,7 @@ def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
             hparams=hparams,
         ).to(device)
 
-        dataset = MP16Dataset(vision_processor = model.vision_processor, text_processor = model.text_processor, image_data_path='/root/.cache/mp-16-images.tar')
+        dataset = MP16Dataset(vision_processor = model.vision_processor, text_processor = model.text_processor, image_data_path='/data/mp16/mp-16-images.tar')
         dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=16, pin_memory=True, prefetch_factor=5)
 
 
@@ -143,7 +143,7 @@ def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
         # return avg_acc
         predictor = ZeroShotPredictor(model=unwrapped_model, device=device)
         df, res = predictor.evaluate_im2gps3k(
-            df_path="im2gps3k_places365.csv",
+            df_path="/data/im2gps3k/im2gps3k_places365.csv",
             top_k=5
         )
         
