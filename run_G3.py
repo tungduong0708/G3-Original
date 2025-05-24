@@ -46,22 +46,30 @@ def main():
     # fine-tune
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # device = 'cpu'
-    model = G3(
-        device=device,
-        positional_encoding_type='sh',
-        neural_network_type='siren',
-        hparams={
+    hparams={
+        'sỉren_sh': {
             'legendre_polys': 20,
             'harmonics_calculation': 'analytic',
             'hidden_dim': 1024,
             'num_layers': 3,
+        },
+        'projection_rffmlp' : {
+            'projection': 'eep',
+            'sigma': [2**0, 2**4, 2**8],
+            'hidden_dim': 1024
         }
+    }
+    model = G3(
+        device=device,
+        positional_encoding_type='projection',
+        neural_network_type='rffmlp',
+        hparams=hparams['projection_rffmlp']
     ).to(device)
     # model = torch.load('g3_5_.pth')
     # location_encoder_dict = torch.load('g3_5_.pth') # from geoclip
     # model.location_encoder.load_state_dict(location_encoder_dict)
 
-    dataset = MP16Dataset(vision_processor = model.vision_processor, text_processor = model.text_processor, image_data_path='/root/.cache/mp-16-images.tar')
+    dataset = MP16Dataset(vision_processor = model.vision_processor, text_processor = model.text_processor, image_data_path='/filtered_mp16.tar')
     dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=16, pin_memory=True, prefetch_factor=5)
 
 
