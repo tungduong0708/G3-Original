@@ -66,8 +66,8 @@ def main():
         hparams=hparams['projection_rffmlp']
     ).to(device)
     # model = torch.load('g3_5_.pth')
-    # location_encoder_dict = torch.load('g3_5_.pth') # from geoclip
-    # model.location_encoder.load_state_dict(location_encoder_dict)
+    location_encoder_dict = torch.load('/checkpoints/location_encoder_weights.pth') # from geoclip
+    model.location_encoder.load_state_dict(location_encoder_dict)
 
     dataset = MP16Dataset(vision_processor = model.vision_processor, text_processor = model.text_processor, image_data_path='/data/mp16/filtered_mp16.tar')
     dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=16, pin_memory=True, prefetch_factor=5)
