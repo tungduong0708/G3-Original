@@ -46,8 +46,8 @@ class MP16Dataset(VisionDataset):
             all_image_names = []
             for member in tqdm(self.tar_obj[worker]):
                 if member.name.endswith('.jpg') and member.size > 5120:
-                    self.tar_index[member.name] = member
-                    all_image_names.append(member.name)
+                    self.tar_index[member.name.split('/')[1]] = member
+                    all_image_names.append(member.name.split('/')[1])
             print('tar index buidling success')
             with open(os.path.join(self.root_path, member_info_path), 'wb') as f:
                 pickle.dump(self.tar_index, f)
