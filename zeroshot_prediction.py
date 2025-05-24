@@ -33,7 +33,7 @@ class ZeroShotPredictor(nn.Module):
             self.model.to(device)
         self.model.requires_grad_(False)
 
-        self.gps_gallery = load_gps_data("coordinates_100K.csv")
+        self.gps_gallery = load_gps_data("/data/coordinates_100K.csv")
         self._initialize_gps_queue(queue_size)
 
         self.device = device
@@ -125,7 +125,7 @@ class ZeroShotPredictor(nn.Module):
         self.model.eval()
 
         # Prepare dataset and dataloader
-        dataset = im2gps3kDataset(vision_processor=self.model.vision_processor, text_processor=None, root_path='/kaggle/input/im2gps3k', image_data_path='im2gps3ktest')
+        dataset = im2gps3kDataset(vision_processor=self.model.vision_processor, text_processor=None, root_path='/data/im2gps3k', image_data_path='im2gps3ktest')
         dataloader = DataLoader(
             dataset, batch_size=256, shuffle=False, num_workers=4,
             pin_memory=True, prefetch_factor=5
@@ -177,7 +177,7 @@ class ZeroShotPredictor(nn.Module):
         dataset = im2gps3kDataset(
             vision_processor=self.model.vision_processor,
             text_processor=None,
-            root_path='/kaggle/input/im2gps3k',
+            root_path='/data/im2gps3k',
             image_data_path='im2gps3ktest'
         )
         dataloader = DataLoader(
@@ -247,7 +247,7 @@ def main():
 
     # Set parameters
     top_k = 5  # Number of top predictions to return
-    im2gps3k_path = './data/im2gps3k/im2gps3k_places365.csv'  # Path to im2gps3k dataset
+    im2gps3k_path = '/data/im2gps3k/im2gps3k_places365.csv'  # Path to im2gps3k dataset
 
     print("Starting prediction on im2gps3k dataset...")
     # Get predictions and evaluate

@@ -87,7 +87,7 @@ def train_1epoch(dataloader, eval_dataloader, earlystopper, model, vision_proces
     scheduler.step()
 
 def tune(positional_encoding_type, neural_network_type, dataset_name="mp16"):
-    n_trials = 10
+    n_trials = 16
     timeout = 90 * 60 # seconds
     epochs = 3
 
